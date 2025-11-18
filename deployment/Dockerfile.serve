@@ -1,0 +1,24 @@
+# Dockerfile for MODULAR Serve API
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    pandas \
+    prophet \
+    minio \
+    python-multipart
+
+# Create model directory
+RUN mkdir -p /mnt/models
+
+# Copy MODULAR API server script
+COPY serve_kubeflow_modular.py /app/serve_kubeflow_modular.py
+
+EXPOSE 8000
+
+# Set entrypoint to run MODULAR serve script
+ENTRYPOINT ["python", "/app/serve_kubeflow_modular.py"]

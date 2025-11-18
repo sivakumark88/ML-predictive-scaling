@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forecast-api-modular
+  labels:
+    app: forecast-modular
+    version: v1.5-modular
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forecast-api-modular
+  namespace: forecast-api-modular  # Fixed: was forecast-api
+  labels:
+    app: forecast-api-modular
+    version: v1.5-modular
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: forecast-api-modular
+  template:
+    metadata:
+      labels:
+        app: forecast-api-modular
+        version: v1.5-modular
+    spec:
+      containers:
+      - name: forecast-api-modular
+        image: shivapondicherry/forecast-serve:mlflow
+        ports:
+        - containerPort: 8000
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        env:
+        - name: MODEL_VERSION
+          value: "v1.5-mlflow"
+        - name: PIPELINE_SOURCE
+          value: "modular-4stage-pipeline"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow.mlflow.svc.cluster.local:5000"
+        - name: MLFLOW_CPU_MODEL_NAME
+          value: "modular-cpu-prophet-model"
+        - name: MLFLOW_MEMORY_MODEL_NAME
+          value: "modular-memory-prophet-model"
+        - name: MLFLOW_MODEL_STAGE
+          value: "Production"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: forecast-api-modular-service
+  namespace: forecast-api
+  labels:
+    app: forecast-api-modular
+spec:
+  selector:
+    app: forecast-api-modular
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: forecast-api-modular-service
+  namespace: forecast-api-modular
+  labels:
+    app: forecast-api-modular
+    version: v1.5-modular
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: forecast-api-modular
+---
+# ConfigMap for modular configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forecast-modular-config
+  namespace: forecast-api-modular
+data:
+  app.conf: |
+    # Forecast API Modular Configuration v1.5
+    MODEL_PREFIX=modular
+    CPU_MODEL=modular-cpu_prophet_model.pkl
+    MEMORY_MODEL=modular-memory_prophet_model.pkl
+    
+    # This version uses models trained by the modular 4-stage pipeline
+    # Safe deployment - won't interfere with production models
+    
+  deployment.info: |
+    Deployment: Modular Forecast API
+    Version: v1.5-modular
+    Models: 
+      - models/modular-cpu_prophet_model.pkl
+      - models/modular-memory_prophet_model.pkl
+    
+    Trained by: modular-4stage pipeline
+    Pipeline: 4-stage modular approach
+    - Stage 1: Data Validation
+    - Stage 2: Feature Engineering  
+    - Stage 3: Model Training
+    - Stage 4: Model Validation
+    
+    Production Safety:
+    - Separate namespace: forecast-api-modular
+    - Separate models: modular-* prefix
+    - Different image tag: v1.5-modular
+    - Different port: 8003 (via port-forward)
+    
+    Existing deployments remain untouched:
+    - forecast-api (v1.3) - ports 8001/8002
+    - forecast-api-v14 (v1.4-fixed)

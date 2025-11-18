@@ -1,0 +1,148 @@
+# PIPELINE DEFINITION
+# Name: clean-3stage-mlflow-pipeline
+# Description: Clean 3-stage pipeline: validate -> engineer -> train (MLflow storage only)
+components:
+  comp-data-validation-component:
+    executorLabel: exec-data-validation-component
+  comp-feature-engineering-component:
+    executorLabel: exec-feature-engineering-component
+  comp-model-training-component:
+    executorLabel: exec-model-training-component
+deploymentSpec:
+  executors:
+    exec-data-validation-component:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - data_validation_component
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.2'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef data_validation_component():\n    \"\"\"Stage 1: Validate CSV\
+          \ dataset from MinIO\"\"\"\n    print(\"=== STAGE 1: DATA VALIDATION ===\"\
+          )\n\n    # Scripts are available in the Docker image at /app/scripts via\
+          \ PYTHONPATH\n    from simple_data_validator import run_validation\n\n \
+          \   validation_results = run_validation()\n\n    if validation_results['validation_status']\
+          \ != 'PASSED':\n        raise Exception(\"Data validation failed - stopping\
+          \ pipeline\")\n\n    print(f\"Stage 1 Complete: {validation_results['record_count']}\
+          \ records validated\")\n\n"
+        image: shivapondicherry/forecast-train:v6-registry-fix
+    exec-feature-engineering-component:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - feature_engineering_component
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.2'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef feature_engineering_component():\n    \"\"\"Stage 2: Feature\
+          \ engineering on CSV\"\"\"\n    print(\"=== STAGE 2: FEATURE ENGINEERING\
+          \ ===\")\n\n    from simple_feature_engineer import run_feature_engineering\n\
+          \n    processed_data = run_feature_engineering()\n\n    print(f\"Stage 2\
+          \ Complete: {len(processed_data)} records processed for Prophet\")\n\n"
+        image: shivapondicherry/forecast-train:v6-registry-fix
+    exec-model-training-component:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - model_training_component
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.2'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef model_training_component():\n    \"\"\"Stage 3: Train models\
+          \ and upload to MLflow (FINAL STAGE)\"\"\"\n    import subprocess\n    import\
+          \ sys\n\n    print(\"=== STAGE 3: MODEL TRAINING & MLFLOW UPLOAD (FINAL)\
+          \ ===\")\n\n    # Install MLflow\n    subprocess.check_call([sys.executable,\
+          \ \"-m\", \"pip\", \"install\", \"mlflow==2.16.0\", \"--quiet\"])\n\n  \
+          \  from simple_model_trainer import run_training\n\n    cpu_run_id, memory_run_id\
+          \ = run_training()\n\n    print(\"Stage 3 Complete:\")\n    print(f\"  \
+          \ CPU Model Run: {cpu_run_id}\")\n    print(f\"   Memory Model Run: {memory_run_id}\"\
+          )\n    print(\"   Models uploaded to MLflow Registry and promoted to Staging\"\
+          )\n    print(\"\U0001F389 PIPELINE COMPLETE! Models ready for use in MLflow\
+          \ Registry\")\n\n"
+        image: shivapondicherry/forecast-train:v6-registry-fix
+pipelineInfo:
+  description: 'Clean 3-stage pipeline: validate -> engineer -> train (MLflow storage
+    only)'
+  name: clean-3stage-mlflow-pipeline
+root:
+  dag:
+    tasks:
+      data-validation-component:
+        cachingOptions: {}
+        componentRef:
+          name: comp-data-validation-component
+        taskInfo:
+          name: 'Stage 1: Data Validation'
+      feature-engineering-component:
+        cachingOptions: {}
+        componentRef:
+          name: comp-feature-engineering-component
+        dependentTasks:
+        - data-validation-component
+        taskInfo:
+          name: 'Stage 2: Feature Engineering'
+      model-training-component:
+        cachingOptions: {}
+        componentRef:
+          name: comp-model-training-component
+        dependentTasks:
+        - feature-engineering-component
+        taskInfo:
+          name: 'Stage 3: Model Training (FINAL)'
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.14.2
