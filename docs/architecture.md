@@ -19,38 +19,32 @@ This document describes the architecture of the ML Predictive Scaling system for
 
 ```mermaid
 graph LR
+
     %% Data Sources (Left)
-    subgraph "📊 Data Sources"
-        K8S["<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg' width='40' height='40'/><br/>⚙️ Kubernetes Cluster<br/>Resource Metrics"]
-        PROM["<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prometheus/prometheus-original.svg' width='40' height='40'/><br/>📈 Prometheus<br/>Monitoring & Metrics"]
+    subgraph Data_Sources
+        K8S[⚙️ Kubernetes Cluster - Resource Metrics]
+        PROM[📈 Prometheus - Monitoring & Metrics]
         K8S --> PROM
     end
 
     %% Data Storage (Center-Left)
-  subgraph "💾 Data Storage"
-<<<<<<< HEAD
-    MINIO[🗄️ MinIO Object Storage<br/>📁 mlpipeline bucket]
-=======
-    MINIO["<img src='https://blog.min.io/content/images/size/w2000/2019/05/0_hReq8dEVSFIYJMDv.png' width='40' height='40'/><br/>🗄️ MinIO Object Storage<br/>📁 mlpipeline bucket"]
->>>>>>> 23c72a13c18db8d8c174160808faaad50861f2dc
-    DATASET[📄 metrics_dataset.csv]
-  end
+    subgraph Data_Storage
+        MINIO[🗄️ MinIO Object Storage - mlpipeline bucket]
+        DATASET[📄 metrics_dataset.csv]
+    end
 
-  subgraph "📦 Model Registry"
-<<<<<<< HEAD
-    MLFLOW[📦 MLflow Model Registry<br/>Versioned Prophet Models]
-=======
-    MLFLOW["<img src='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRy8RXezmKJEzVNsbt52H8__bwBgXk6mjC7CA&s' width='40' height='40'/><br/>📦 MLflow Model Registry<br/>Versioned Prophet Models"]
->>>>>>> 23c72a13c18db8d8c174160808faaad50861f2dc
-    MODELS[🧠 Prophet Models<br/>modular-cpu-prophet-model<br/>modular-memory-prophet-model]
-  end
+    %% Model Registry
+    subgraph Model_Registry
+        MLFLOW[📦 MLflow Model Registry - Versioned Prophet Models]
+        MODELS[🧠 Prophet Models - CPU & Memory]
+    end
 
     %% ML Pipeline (Center)
-    subgraph "🔬 ML Pipeline - Kubeflow"
-        DV["<img src='https://avatars.githubusercontent.com/u/33164907?s=200&v=4' width='50' height='50' style='object-fit: contain;'/><br/>1️⃣ Data Validation<br/>📋 CSV validation<br/>🔍 Quality checks"]
-        FE["<img src='https://avatars.githubusercontent.com/u/33164907?s=200&v=4' width='50' height='50' style='object-fit: contain;'/><br/>2️⃣ Feature Engineering<br/>🛠️ Prophet prep<br/>📈 Time series format"]
-        MT["<img src='https://avatars.githubusercontent.com/u/33164907?s=200&v=4' width='50' height='50' style='object-fit: contain;'/><br/>3️⃣ Model Training<br/>🧠 CPU/Memory models<br/>⚙️ Prophet params"]
-        MV["<img src='https://avatars.githubusercontent.com/u/33164907?s=200&v=4' width='50' height='50' style='object-fit: contain;'/><br/>4️⃣ Model Validation<br/>✅ Performance checks<br/>📊 Forecast validation"]
+    subgraph ML_Pipeline_Kubeflow
+        DV[1️⃣ Data Validation - CSV quality checks]
+        FE[2️⃣ Feature Engineering - Prophet prep]
+        MT[3️⃣ Model Training - CPU/Memory models]
+        MV[4️⃣ Model Validation - Performance checks]
         
         DV --> FE
         FE --> MT
@@ -58,25 +52,25 @@ graph LR
     end
 
     %% Kubernetes Infrastructure (Center-Right)
-    subgraph "☸️ Kubernetes Deployment"
-        subgraph "🏗️ Training Infrastructure"
-            KF_NS["<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg' width='30' height='30'/><br/>🔬 kubeflow namespace<br/>🔄 Pipeline execution"]
-            TRAIN_IMG[🐳 Docker Image:<br/>shivapondicherry/forecast-train:v6-registry-fix<br/>📦 Contains: Python, Prophet, Kubeflow SDK]
+    subgraph Kubernetes_Deployment
+        subgraph Training_Infrastructure
+            KF_NS[🔬 kubeflow namespace - pipeline execution]
+            TRAIN_IMG[🐳 Docker: forecast-train image]
         end
         
-        subgraph "🚀 Serving Infrastructure"  
-            API_NS["<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg' width='30' height='30'/><br/>🌐 forecast-api-modular namespace<br/>🚀 API deployment"]
-            SERVE_IMG[🐳 Docker Image:<br/>shivapondicherry/forecast-serve:mlflow<br/>📦 Contains: FastAPI, Prophet models, uvicorn]
+        subgraph Serving_Infrastructure
+            API_NS[🌐 forecast-api-modular namespace - API deployment]
+            SERVE_IMG[🐳 Docker: forecast-serve image]
         end
     end
 
     %% API Layer (Right)
-    subgraph "🌐 API Endpoints"
-        API["<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg' width='40' height='40'/><br/>⚡ FastAPI Service<br/>🌐 Production API"]
-        DAY[📅 next_day<br/>Tomorrow<br/>80/120%]
-        WEEK[📅 next_week<br/>Weekly<br/>80/120%] 
-        MONTH[📅 next_month<br/>Monthly<br/>70/150%]
-        HEALTH[💚 health<br/>Status Check]
+    subgraph API_Endpoints
+        API[⚡ FastAPI Service - Production API]
+        DAY[📅 next_day - Tomorrow]
+        WEEK[📅 next_week - Weekly]
+        MONTH[📅 next_month - Monthly]
+        HEALTH[💚 health - Status Check]
         
         API --> DAY
         API --> WEEK
@@ -85,52 +79,47 @@ graph LR
     end
 
     %% Consumers (Far Right)
-    subgraph "👥 Consumers"
-        DEVOPS[👷 DevOps Teams<br/>📊 Capacity planning]
-        PLATFORM[🔧 Platform Engineers<br/>⚙️ Resource optimization] 
-        AUTO[🤖 Automation Tools<br/>📈 Auto-scaling systems]
+    subgraph Consumers
+        DEVOPS[👷 DevOps Teams - Capacity planning]
+        PLATFORM[🔧 Platform Engineers - Optimization]
+        AUTO[🤖 Automation Tools - Auto-scaling]
     end
 
-    %% Main Data Flow (Horizontal) - Numbered sequence for clarity
-    K8S -->|"①<br/>Live metrics"| PROM
-    PROM -.->|"②<br/>Historical data"| DATASET
-    DATASET -->|"③<br/>Training data"| DV
-  MV -->|"④<br/>Register models"| MLFLOW
-  MLFLOW -->|"⑤<br/>Load models"| API
-    API -->|"⑥<br/>Predictions"| DEVOPS
-    API -->|"⑥<br/>Predictions"| PLATFORM
-    API -->|"⑥<br/>Predictions"| AUTO
+    %% Main Data Flow
+    K8S -->|"① Live metrics"| PROM
+    PROM -.->|"② Historical data"| DATASET
+    DATASET -->|"③ Training data"| DV
+    MV -->|"④ Register models"| MLFLOW
+    MLFLOW -->|"⑤ Load models"| API
+    API -->|"⑥ Predictions"| DEVOPS
+    API --> PLATFORM
+    API --> AUTO
     
-    %% Storage connections
-  MINIO --> DATASET
+    MINIO --> DATASET
     
-    %% Deployment connections (Kubernetes orchestrates pipeline stages)
     KF_NS --> DV
     KF_NS --> FE
     KF_NS --> MT
     KF_NS --> MV
     API_NS --> API
-    
-    %% Docker runtime connections (shows what runs where)
+
     TRAIN_IMG --> DV
     TRAIN_IMG --> FE
     TRAIN_IMG --> MT
     TRAIN_IMG --> MV
     SERVE_IMG --> API
 
-    %% Consumer connections
     API --> DEVOPS
     API --> PLATFORM
     API --> AUTO
 
-    %% Styling with better colors for each technology
-    classDef dataSource fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
-    classDef storage fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#4a148c
-    classDef pipeline fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
-    classDef serving fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#bf360c
-    classDef infra fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#880e4f
-    classDef client fill:#f1f8e9,stroke:#558b2f,stroke-width:2px,color:#33691e
-    classDef docker fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#01579b
+    classDef dataSource fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef storage fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
+    classDef pipeline fill:#e8f5e8,stroke:#2e7d32,color:#1b5e20
+    classDef serving fill:#fff3e0,stroke:#ef6c00,color:#bf360c
+    classDef infra fill:#fce4ec,stroke:#c2185b,color:#880e4f
+    classDef client fill:#f1f8e9,stroke:#558b2f,color:#33691e
+    classDef docker fill:#e1f5fe,stroke:#0277bd,color:#01579b
 
     class K8S,PROM dataSource
     class MINIO,DATASET,MODELS storage
